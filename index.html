@@ -1,0 +1,571 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Global Chat</title>
+<style>
+:root{--bg:#eef1f4;--card:#fff;--ink:#14202b;--muted:#64748b;--accent:#0f766e;--mine:#d7ece9;--line:#dbe1e8;--danger:#b91c1c}
+@media (prefers-color-scheme:dark){:root{--bg:#0e1419;--card:#17202a;--ink:#e6edf3;--muted:#8b9aab;--accent:#2dd4bf;--mine:#143a3a;--line:#243040;--danger:#f87171}}
+*{box-sizing:border-box}
+html,body{height:100%;margin:0}
+body{background:var(--bg);color:var(--ink);font:16px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+.hide{display:none!important}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+#auth{min-height:100%;display:flex;align-items:center;justify-content:center;padding:16px}
+.panel{width:100%;max-width:380px;background:var(--card);border:1px solid var(--line);border-radius:14px;padding:28px}
+h1{margin:0 0 4px;font-size:24px;letter-spacing:-.01em}
+.sub{margin:0 0 18px;color:var(--muted);font-size:14px}
+label{display:block;font-size:13px;color:var(--muted);margin-top:12px}
+input{width:100%;padding:11px 12px;margin-top:4px;border:1px solid var(--line);border-radius:8px;background:var(--bg);color:var(--ink);font:inherit}
+button{padding:11px 16px;border:0;border-radius:8px;background:var(--accent);color:#fff;font:inherit;font-weight:600;cursor:pointer}
+@media (prefers-color-scheme:dark){button{color:#04201e}}
+button:disabled{opacity:.6;cursor:default}
+#go{width:100%;margin-top:18px}
+.link{background:none;color:var(--accent);padding:10px 0 0;font-weight:500}
+#msg{min-height:20px;margin-top:10px;font-size:14px;color:var(--danger)}
+#msg.ok{color:var(--accent)}
+#app{height:100%;display:flex;flex-direction:column}
+header{display:flex;align-items:center;justify-content:space-between;gap:8px;padding:12px 16px;background:var(--card);border-bottom:1px solid var(--line)}
+header b{font-size:17px}
+header .r{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--muted)}
+#out,#bell{padding:6px 12px;font-size:14px;background:var(--line);color:var(--ink)}
+#list{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
+.m{max-width:min(80%,520px);padding:8px 12px;border-radius:12px;background:var(--card);border:1px solid var(--line);align-self:flex-start;overflow-wrap:anywhere}
+.m.me{align-self:flex-end;background:var(--mine);border-color:transparent}
+.m .n{display:block;font-size:12px;font-weight:600;color:var(--accent)}
+.m .t{margin-left:8px;font-size:11px;color:var(--muted);white-space:nowrap}
+.empty{margin:auto;color:var(--muted)}
+#emobtn,#attach{background:var(--line);color:var(--ink);font-size:18px;padding:8px 12px}
+#emopanel{background:var(--card);border-top:1px solid var(--line)}
+emoji-picker{width:100%;height:300px;--background:var(--card);--border-color:var(--line);--input-border-color:var(--line);--input-font-color:var(--ink);--input-placeholder-color:var(--muted);--category-font-color:var(--muted);--button-hover-background:var(--bg);--button-active-background:var(--line);--indicator-color:var(--accent);--outline-color:var(--accent)}
+#player{display:flex;align-items:center;gap:8px;padding:8px 16px;background:var(--mine);border-bottom:1px solid var(--line);font-size:14px}
+#player span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+#player button{padding:6px 10px;font-size:14px}
+#pp,#ps{background:var(--line);color:var(--ink)}
+.bot{display:flex;flex-direction:column;gap:4px}
+.bot small{color:var(--muted)}
+.bot button{display:none;align-self:flex-start;padding:6px 12px;font-size:14px}
+.bot.live button{display:inline-block}
+.picker{align-self:stretch;max-width:100%}
+.picker button{display:block;width:100%;margin-top:6px;text-align:left;background:var(--line);color:var(--ink);font-weight:500;font-size:14px}
+.m img.pic{display:block;max-width:100%;max-height:260px;border-radius:8px;margin-top:4px;cursor:zoom-in}
+#imgprev{display:flex;align-items:center;gap:10px;padding:8px 16px;background:var(--card);border-top:1px solid var(--line);font-size:14px;color:var(--muted)}
+#imgprev img{height:56px;max-width:90px;object-fit:cover;border-radius:6px}
+#imgprev span{flex:1}
+#pvx{background:var(--line);color:var(--ink);padding:6px 10px}
+.sysnote{align-self:center;color:var(--muted);font-size:13px;text-align:center}
+#form{display:flex;gap:8px;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));background:var(--card);border-top:1px solid var(--line)}
+#form input{margin:0;flex:1}
+</style>
+</head>
+<body>
+
+<div id="auth" class="hide">
+  <form class="panel" id="authForm">
+    <h1>Global Chat</h1>
+    <p class="sub" id="sub">Log in to join the conversation.</p>
+    <div id="nameRow" class="hide">
+      <label for="dn">Display name</label>
+      <input id="dn" maxlength="20" autocomplete="nickname">
+    </div>
+    <label for="em">Email</label>
+    <input id="em" type="email" autocomplete="email" required>
+    <label for="pw">Password</label>
+    <input id="pw" type="password" minlength="6" autocomplete="current-password" required>
+    <div id="msg" role="status"></div>
+    <button id="go" type="submit">Log in</button>
+    <button class="link" id="toggle" type="button">No account? Create one</button>
+  </form>
+</div>
+
+<div id="app" class="hide">
+  <header><b>Global Chat</b><div class="r"><span id="who"></span><button id="bell" type="button" title="Notifications">🔕</button><button id="out" type="button">Log out</button></div></header>
+  <div id="player" class="hide"><span id="np"></span><button id="pj" type="button">Join</button><button id="pp" type="button">⏸</button><button id="ps" type="button">⏹</button></div>
+  <div id="list"><div class="empty">Loading…</div></div>
+  <div id="emopanel" class="hide"><emoji-picker></emoji-picker></div>
+  <div id="imgprev" class="hide"><img id="pv" alt=""><span>Image ready to send</span><button type="button" id="pvx" aria-label="Remove image">✕</button></div>
+  <form id="form"><input id="text" maxlength="1000" placeholder="Write a message" autocomplete="off"><button type="button" id="emobtn" aria-label="Emoji">😀</button><button type="button" id="attach" aria-label="Attach image">📎</button><input type="file" id="file" accept="image/*" class="hide"><button type="submit">Send</button></form>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/dist/umd/supabase.min.js"></script>
+<script type="module" src="https://cdn.jsdelivr.net/npm/emoji-picker-element@1/index.js"></script>
+<script>
+/* ====== 1. PASTE YOUR SUPABASE VALUES HERE (Project Settings -> API) ====== */
+const SUPABASE_URL = "https://byiebcnqtlftieiwswaw.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJ5aWViY25xdGxmdGllaXdzd2F3Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTA4ODQxOTUsImV4cCI6MjEwNjQ2MDE5NX0.KAmfIWgG-ka73oSbuA8_-Py-y898IVRRLMcfhaLfnAc";
+/* ======================================================================== */
+
+const $ = id => document.getElementById(id);
+/* ====== 2. PASTE YOUR MUSIC BACKEND URL (FastAPI) ====== */
+const MUSIC_API = "http://127.0.0.1:8000";  // e.g. https://your-music-api.onrender.com
+/* ====================================================== */
+const IMG_BASE = SUPABASE_URL + "/storage/v1/object/public/chat-images/";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let signup = false, channel = null, me = null, lastId = 0, poll = null, unread = 0, actx = null;
+let room = null, joined = false, offset = 0, curKey = null;
+let pendingImg = null;
+const tempUrls = {};           // path -> { url, expires }
+const audio = new Audio();
+const baseTitle = "Global Chat";
+const seen = new Set();
+
+async function authHeaders() {
+  const { data } = await sb.auth.getSession();
+  const t = data?.session?.access_token;
+  if (!t) throw new Error('Not signed in');
+  return { 'Authorization': 'Bearer ' + t, 'Content-Type': 'application/json' };
+}
+
+function note(t, ok){ $('msg').textContent = t || ''; $('msg').className = ok ? 'ok' : ''; }
+
+$('toggle').onclick = () => {
+  signup = !signup;
+  $('nameRow').classList.toggle('hide', !signup);
+  $('go').textContent = signup ? 'Create account' : 'Log in';
+  $('toggle').textContent = signup ? 'Have an account? Log in' : 'No account? Create one';
+  $('sub').textContent = signup ? 'Choose a display name, email and password.' : 'Log in to join the conversation.';
+  $('pw').autocomplete = signup ? 'new-password' : 'current-password';
+  note('');
+};
+
+$('authForm').onsubmit = async e => {
+  e.preventDefault(); note(''); $('go').disabled = true;
+  const email = $('em').value.trim(), password = $('pw').value;
+  try {
+    if (signup) {
+      const display_name = $('dn').value.trim();
+      if (display_name.length < 2) return note('Display name must be at least 2 characters.');
+      const { data, error } = await sb.auth.signUp({ email, password, options: { data: { display_name } } });
+      if (error) return note(error.message);
+      if (!data.session) return note('Account created. Check your email to confirm it, then log in.', true);
+    } else {
+      const { error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) return note(error.message);
+    }
+  } finally { $('go').disabled = false; }
+};
+
+$('out').onclick = () => sb.auth.signOut();
+
+function add(m, notify){
+  if (seen.has(m.id)) return; seen.add(m.id);
+  if (m.id > lastId) lastId = m.id;
+  const box = $('list'), atBottom = box.scrollHeight - box.scrollTop - box.clientHeight < 80;
+  const empty = box.querySelector('.empty'); if (empty) empty.remove();
+  const el = document.createElement('div'); el.className = 'm' + (m.user_id === me.id ? ' me' : '');
+  const n = document.createElement('span'); n.className = 'n'; n.textContent = m.username;
+  const c = document.createElement('span');
+  const mj = m.content.startsWith('music::') ? parseMusic(m.content) : null;
+  const iu = m.content.startsWith('img::') ? m.content.slice(5) : null;
+  if (mj) c.appendChild(musicCard(mj));
+  else if (iu && iu.startsWith(IMG_BASE)) {
+    const im = document.createElement('img'); im.className = 'pic'; im.alt = 'image'; im.loading = 'lazy'; im.src = iu;
+    im.onload = () => { if (atBottom) box.scrollTop = box.scrollHeight; };
+    im.onclick = () => window.open(iu, '_blank');
+    c.appendChild(im);
+  } else c.textContent = m.content;
+  const t = document.createElement('span'); t.className = 't';
+  t.textContent = new Date(m.created_at).toLocaleString([], { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' });
+  el.append(n, c, t); box.appendChild(el);
+  if (atBottom || m.user_id === me.id) box.scrollTop = box.scrollHeight;
+  if (notify) ping(m);
+}
+
+/* ---- notifications: sound, tab title count, system notification ---- */
+function previewText(c){ return c.startsWith('music::') ? 'Started some music' : c.startsWith('img::') ? 'Sent a photo' : c; }
+function beep(){
+  try{
+    actx = actx || new (window.AudioContext || window.webkitAudioContext)();
+    const o = actx.createOscillator(), g = actx.createGain();
+    o.frequency.value = 880; g.gain.value = 0.06; o.connect(g); g.connect(actx.destination);
+    o.start(); o.stop(actx.currentTime + 0.12);
+  }catch(e){}
+}
+async function showNote(m){
+  if (!('Notification' in window) || Notification.permission !== 'granted') return;
+  try{
+    const reg = 'serviceWorker' in navigator ? await navigator.serviceWorker.getRegistration() : null;
+    if (reg) reg.showNotification(m.username, { body: m.content, tag: 'chat', renotify: true });
+    else new Notification(m.username, { body: previewText(m.content) });
+  }catch(e){}
+}
+function ping(m){
+  if (!me || m.user_id === me.id) return;
+  beep();
+  if (document.hidden){ unread++; document.title = '(' + unread + ') ' + baseTitle; showNote(m); }
+}
+function bellState(){
+  $('bell').textContent = ('Notification' in window && Notification.permission === 'granted') ? '🔔' : '🔕';
+}
+$('bell').onclick = async () => {
+  if (!('Notification' in window)) return alert('This browser does not support notifications.');
+  if (Notification.permission === 'denied') return alert('Notifications are blocked. Allow them in your browser site settings.');
+  await Notification.requestPermission(); bellState(); beep();
+};
+document.addEventListener('visibilitychange', () => { if (!document.hidden){ unread = 0; document.title = baseTitle; } });
+document.addEventListener('pointerdown', () => { try{ actx = actx || new (window.AudioContext || window.webkitAudioContext)(); }catch(e){} }, { once:true });
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+bellState();
+
+/* ---- backup: check for new messages every 3s in case realtime is off ---- */
+async function pollNew(){
+  if (!me) return;
+  const { data } = await sb.from('messages').select('*').gt('id', lastId).order('id', { ascending:true });
+  if (data) data.forEach(m => add(m, true));
+  await pollRoom();
+}
+
+/* ---- music (yt-dlp backend + music_room sync) ---- */
+function sysNote(t){
+  const el = document.createElement('div'); el.className = 'sysnote'; el.textContent = t;
+  $('list').appendChild(el); $('list').scrollTop = $('list').scrollHeight;
+  setTimeout(() => el.remove(), 6000);
+}
+function parseMusic(c){
+  try { const j = JSON.parse(c.slice(7)); return (typeof j.tid === 'string' && typeof j.title === 'string') ? j : null; } catch (e) { return null; }
+}
+function isLive(tid){ return !!(room && room.status !== 'stopped' && room.track_id === tid); }
+function musicCard(j){
+  const card = document.createElement('div'); card.className = 'bot'; card.dataset.tid = j.tid;
+  const t = document.createElement('b'); t.textContent = '🎵 ' + j.title;
+  const sm = document.createElement('small'); sm.textContent = (j.artist ? j.artist + ' · ' : '') + (j.kind === 'temp' ? 'shared audio' : j.kind === 'url' ? 'audio link' : 'audio');
+  const b = document.createElement('button'); b.type = 'button'; b.textContent = joined ? 'Leave' : 'Join'; b.onclick = toggleJoin;
+  card.append(t, sm, b); card.classList.toggle('live', isLive(j.tid));
+  return card;
+}
+function expected(){
+  if (!room) return 0;
+  if (room.status !== 'playing') return room.position || 0;
+  return (room.position || 0) + (Date.now() + offset - new Date(room.updated_at).getTime()) / 1000;
+}
+function trackSrc(r){
+  if (r.kind === 'url') return r.src;
+  if (r.kind === 'temp' && r.src && tempUrls[r.src]) return tempUrls[r.src].url;
+  return null;
+}
+function seek(){ try { audio.currentTime = Math.max(0, expected()); } catch (e) {} }
+
+async function ensureTempUrl(path){
+  if (!path) return null;
+  const cached = tempUrls[path];
+  if (cached && cached.expires > Date.now() + 60000) return cached.url;
+  try {
+    const headers = await authHeaders();
+    const res = await fetch(MUSIC_API + '/api/music/sign', {
+      method: 'POST', headers, body: JSON.stringify({ path })
+    });
+    if (!res.ok) {
+      const j = await res.json().catch(() => ({}));
+      throw new Error(j.detail || 'Could not refresh audio URL');
+    }
+    const j = await res.json();
+    tempUrls[path] = { url: j.signed_url, expires: Date.now() + (j.expires_in || 7200) * 1000 };
+    return j.signed_url;
+  } catch (e) {
+    sysNote(e.message || 'Playback URL unavailable');
+    return null;
+  }
+}
+
+async function applyAudio(){
+  if (!joined || !room) return;
+  if (room.status === 'stopped') {
+    audio.pause(); joined = false; curKey = null; refreshUI(); return;
+  }
+  if (room.kind === 'temp') {
+    const url = await ensureTempUrl(room.src);
+    if (!url) { joined = false; refreshUI(); return; }
+    if (curKey !== room.track_id) {
+      curKey = room.track_id;
+      audio.src = url;
+      audio.onloadedmetadata = seek;
+    } else if (Math.abs(audio.currentTime - expected()) > 2.5) seek();
+  } else if (room.kind === 'url') {
+    if (curKey !== room.track_id) {
+      curKey = room.track_id;
+      audio.src = room.src;
+      audio.onloadedmetadata = seek;
+    } else if (Math.abs(audio.currentTime - expected()) > 2.5) seek();
+  } else {
+    sysNote('This track type is no longer supported.');
+    joined = false; refreshUI(); return;
+  }
+  if (room.status === 'playing') audio.play().catch(() => sysNote('Playback failed — try Join again.'));
+  else { audio.pause(); seek(); }
+}
+
+function refreshUI(){
+  const on = !!(room && room.track_id && room.status !== 'stopped');
+  $('player').classList.toggle('hide', !on);
+  if (on) {
+    $('np').textContent = '🎵 ' + room.title + (room.artist ? ' — ' + room.artist : '');
+    $('pj').textContent = joined ? 'Leave' : 'Join';
+    $('pp').textContent = room.status === 'playing' ? '⏸' : '▶';
+  }
+  document.querySelectorAll('.bot').forEach(c => {
+    c.classList.toggle('live', isLive(c.dataset.tid));
+    const b = c.querySelector('button'); if (b) b.textContent = joined ? 'Leave' : 'Join';
+  });
+}
+function setRoom(r){
+  if (room && room.updated_at === r.updated_at && room.status === r.status && room.track_id === r.track_id) return;
+  const old = room;
+  room = r;
+  // When track changes or stops, clean up previous temp object (best-effort)
+  if (old && old.kind === 'temp' && old.src &&
+      (r.status === 'stopped' || r.track_id !== old.track_id)) {
+    cleanupTemp(old.src);
+  }
+  refreshUI();
+  applyAudio();
+}
+async function pollRoom(){
+  const { data } = await sb.from('music_room').select('*').eq('id', 1).maybeSingle();
+  if (data) setRoom(data);
+}
+async function initMusic(){
+  try {
+    const t0 = Date.now(); const { data } = await sb.rpc('server_time');
+    if (data) offset = new Date(data).getTime() - (t0 + Date.now()) / 2;
+  } catch (e) {}
+  await pollRoom();
+}
+function toggleJoin(){
+  if (joined) { joined = false; audio.pause(); refreshUI(); return; }
+  if (!room || room.status === 'stopped') { sysNote('Nothing is playing right now.'); return; }
+  joined = true; curKey = null; applyAudio(); refreshUI();
+}
+async function trackEnded(){
+  if (room && room.status === 'playing') {
+    const path = room.kind === 'temp' ? room.src : null;
+    await sb.from('music_room').update({ status: 'stopped', position: 0 }).eq('id', 1).eq('status', 'playing').eq('track_id', room.track_id);
+    if (path) cleanupTemp(path);
+  }
+}
+audio.onended = trackEnded;
+$('pj').onclick = toggleJoin;
+$('pp').onclick = () => runCommand(room && room.status === 'playing' ? '/pause' : '/resume');
+$('ps').onclick = () => runCommand('/stop');
+
+async function cleanupTemp(path){
+  if (!path || !me) return;
+  delete tempUrls[path];
+  try {
+    const headers = await authHeaders();
+    await fetch(MUSIC_API + '/api/music/cleanup', {
+      method: 'POST', headers, body: JSON.stringify({ path })
+    });
+  } catch (e) { /* best-effort */ }
+}
+
+async function setRoomRow(fields){
+  const { error } = await sb.from('music_room').update(fields).eq('id', 1);
+  if (error) { sysNote('Music error: ' + error.message); return false; }
+  await pollRoom(); return true;
+}
+
+async function startTrack(t){
+  joined = true; curKey = null;
+  if (t.kind === 'temp' && t.path && t.signed_url) {
+    tempUrls[t.path] = { url: t.signed_url, expires: Date.now() + 7200 * 1000 };
+  }
+  const title = String(t.title).slice(0, 100);
+  const artist = String(t.artist || '').slice(0, 60);
+  const ok = await setRoomRow({
+    track_id: t.id || t.track_id,
+    kind: t.kind || 'temp',
+    src: t.path || t.src || null,
+    title, artist,
+    status: 'playing',
+    position: 0,
+    started_by: me.user_metadata?.display_name || me.email || 'user'
+  });
+  if (!ok) { joined = false; return; }
+  const payload = { tid: t.id || t.track_id, title, artist, kind: t.kind || 'temp' };
+  const r = await sb.from('messages').insert({ content: 'music::' + JSON.stringify(payload) }).select().single();
+  if (r.data) add(r.data);
+  sysNote('Now playing: ' + title);
+}
+
+async function prepareFromBackend(query){
+  sysNote('Searching for "' + query + '"…');
+  let headers;
+  try { headers = await authHeaders(); }
+  catch (e) { sysNote('Please log in again.'); return; }
+  let res;
+  try {
+    res = await fetch(MUSIC_API + '/api/music/prepare', {
+      method: 'POST', headers, body: JSON.stringify({ query })
+    });
+  } catch (e) {
+    sysNote('Music service unavailable. Is the backend running?');
+    return;
+  }
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const detail = typeof j.detail === 'string' ? j.detail
+      : (Array.isArray(j.detail) ? j.detail.map(x => x.msg || x).join('; ') : null);
+    sysNote(detail || 'Could not prepare that track.');
+    return;
+  }
+  sysNote('Preparing audio…');
+  await startTrack({
+    id: j.track_id,
+    track_id: j.track_id,
+    title: j.title,
+    artist: j.artist,
+    kind: 'temp',
+    path: j.path,
+    signed_url: j.signed_url
+  });
+}
+
+async function runCommand(text){
+  const parts = text.trim().split(/\s+/), c = parts[0].toLowerCase(), arg = parts.slice(1).join(' ');
+  try {
+    if (c === '/music' || c === '/play') {
+      if (!arg) return sysNote('Usage: /music song name');
+      if (/^https?:\/\//i.test(arg)) {
+        return sysNote('Paste a song name, not a link. Example: /music espresso');
+      }
+      await prepareFromBackend(arg);
+    } else if (c === '/pause') {
+      if (!room || room.status !== 'playing') return sysNote('Nothing is playing.');
+      await setRoomRow({ status: 'paused', position: expected() });
+    } else if (c === '/resume') {
+      if (!room || room.status !== 'paused') return sysNote('Nothing is paused.');
+      await setRoomRow({ status: 'playing' });
+    } else if (c === '/stop') {
+      if (!room || room.status === 'stopped') return sysNote('Nothing is playing.');
+      const path = room.kind === 'temp' ? room.src : null;
+      await setRoomRow({ status: 'stopped', position: 0 });
+      if (path) cleanupTemp(path);
+    } else {
+      sysNote('Commands: /music song name · /pause · /resume · /stop');
+    }
+  } catch (e) {
+    sysNote('Something went wrong with that command.');
+  }
+}
+
+async function openChat(user){
+  me = user; seen.clear(); lastId = 0; unread = 0; document.title = baseTitle;
+  $('auth').classList.add('hide'); $('app').classList.remove('hide');
+  $('who').textContent = user.user_metadata?.display_name || user.email;
+  $('list').innerHTML = '<div class="empty">Loading…</div>';
+  // live updates first, so nothing is missed while history loads
+  channel = sb.channel('global-chat')
+    .on('postgres_changes', { event:'INSERT', schema:'public', table:'messages' }, p => add(p.new, true))
+    .on('postgres_changes', { event:'UPDATE', schema:'public', table:'music_room' }, p => setRoom(p.new))
+    .subscribe();
+  const { data, error } = await sb.from('messages').select('*').order('created_at', { ascending:false }).limit(200);
+  if (error) { $('list').innerHTML = '<div class="empty">Could not load messages. Check the SQL setup.</div>'; return; }
+  $('list').innerHTML = '';
+  if (!data.length) $('list').innerHTML = '<div class="empty">No messages yet. Write the first one.</div>';
+  data.reverse().forEach(m => add(m));
+  if (poll) clearInterval(poll); poll = setInterval(pollNew, 3000);
+  $('list').scrollTop = $('list').scrollHeight;
+  initMusic();
+}
+
+function closeChat(){
+  if (channel) { sb.removeChannel(channel); channel = null; }
+  if (poll) { clearInterval(poll); poll = null; }
+  closeEmo();
+  joined = false; curKey = null; room = null; audio.pause(); clearPending(); $('player').classList.add('hide');
+  me = null; $('app').classList.add('hide'); $('auth').classList.remove('hide'); $('pw').value = '';
+}
+
+/* ---- emoji picker ---- */
+function mountPicker(){
+  const p = document.createElement('emoji-picker');
+  p.addEventListener('emoji-click', e => {
+    const t = $('text'), u = e.detail.unicode;
+    const a = t.selectionStart == null ? t.value.length : t.selectionStart;
+    const b = t.selectionEnd == null ? a : t.selectionEnd;
+    t.value = t.value.slice(0, a) + u + t.value.slice(b);
+    try { t.setSelectionRange(a + u.length, a + u.length); } catch (err) {}
+  });
+  $('emopanel').replaceChildren(p);   // a fresh picker = cleared search, first tab, scrolled to top
+}
+function closeEmo(){ $('emopanel').classList.add('hide'); mountPicker(); }
+$('emobtn').onclick = () => {
+  if ($('emopanel').classList.contains('hide')) $('emopanel').classList.remove('hide');
+  else closeEmo();
+};
+mountPicker();
+
+/* ---- images: attach, paste, drag & drop (stored in Supabase Storage) ---- */
+function setPending(file){
+  if (!file || !file.type.startsWith('image/')) return;
+  if (file.size > 20 * 1024 * 1024) { sysNote('That image is too large (max 20 MB).'); return; }
+  clearPending(); pendingImg = file;
+  $('pv').src = URL.createObjectURL(file); $('imgprev').classList.remove('hide');
+}
+function clearPending(){
+  if ($('pv').src) URL.revokeObjectURL($('pv').src);
+  $('pv').removeAttribute('src'); $('imgprev').classList.add('hide'); pendingImg = null;
+}
+function prepImage(file){
+  return new Promise((res, rej) => {
+    if (file.type === 'image/gif' && file.size <= 5 * 1024 * 1024) return res({ blob: file, ext: 'gif', type: 'image/gif' });
+    const img = new Image(), u = URL.createObjectURL(file);
+    img.onload = () => {
+      const sc2 = Math.min(1, 1280 / Math.max(img.width, img.height));
+      const cv = document.createElement('canvas'); cv.width = Math.round(img.width * sc2); cv.height = Math.round(img.height * sc2);
+      const x = cv.getContext('2d'); x.fillStyle = '#fff'; x.fillRect(0, 0, cv.width, cv.height); x.drawImage(img, 0, 0, cv.width, cv.height);
+      URL.revokeObjectURL(u);
+      cv.toBlob(b => b ? res({ blob: b, ext: 'jpg', type: 'image/jpeg' }) : rej(new Error('encode')), 'image/jpeg', 0.85);
+    };
+    img.onerror = () => { URL.revokeObjectURL(u); rej(new Error('bad image')); };
+    img.src = u;
+  });
+}
+async function sendImage(file){
+  try {
+    const { blob, ext, type } = await prepImage(file);
+    const path = me.id + '/' + Date.now() + '-' + Math.random().toString(36).slice(2, 8) + '.' + ext;
+    const up = await sb.storage.from('chat-images').upload(path, blob, { contentType: type, cacheControl: '31536000' });
+    if (up.error) { sysNote('Image not sent: ' + up.error.message); return; }
+    const url = sb.storage.from('chat-images').getPublicUrl(path).data.publicUrl;
+    const r = await sb.from('messages').insert({ content: 'img::' + url }).select().single();
+    if (r.data) add(r.data); else sysNote('Image not sent.');
+  } catch (e) { sysNote('Image not sent.'); }
+}
+$('attach').onclick = () => $('file').click();
+$('file').onchange = () => { if ($('file').files[0]) setPending($('file').files[0]); $('file').value = ''; };
+$('pvx').onclick = clearPending;
+document.addEventListener('paste', e => {
+  if (!me || !e.clipboardData) return;
+  for (const it of e.clipboardData.items) {
+    if (it.kind === 'file' && it.type.startsWith('image/')) { e.preventDefault(); setPending(it.getAsFile()); return; }
+  }
+});
+document.addEventListener('dragover', e => { if (me) e.preventDefault(); });
+document.addEventListener('drop', e => {
+  if (!me) return; e.preventDefault();
+  const f = e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files[0]; if (f) setPending(f);
+});
+
+$('form').onsubmit = async e => {
+  e.preventDefault();
+  const content = $('text').value.trim(); if (!content && !pendingImg) return;
+  $('text').value = '';
+  closeEmo();
+  if (pendingImg) { const f = pendingImg; clearPending(); await sendImage(f); }
+  if (!content) return;
+  if (content.startsWith('/')) { runCommand(content); return; }
+  const { data, error } = await sb.from('messages').insert({ content }).select().single();
+  if (error) { $('text').value = content; alert('Message not sent: ' + error.message); return; }
+  add(data);
+};
+
+sb.auth.onAuthStateChange((_evt, session) => {
+  if (session?.user) { if (!me || me.id !== session.user.id) openChat(session.user); }
+  else closeChat();
+});
+sb.auth.getSession().then(({ data }) => { if (!data.session) $('auth').classList.remove('hide'); });
+</script>
+</body>
+</html>
